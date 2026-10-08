@@ -1,36 +1,26 @@
-# Builds the MCP App and production Python runtime. Update the UI COPY paths
-# when renaming the example; generated dist/ files stay out of source control.
-FROM node:22-alpine AS ui-builder
-
-WORKDIR /ui
-
-COPY app/ui/say_hello/package.json app/ui/say_hello/package-lock.json ./
-RUN npm ci --no-audit --no-fund
-
-COPY app/ui/say_hello/index.html app/ui/say_hello/vite.config.js ./
-COPY app/ui/say_hello/src/ ./src/
-RUN npm run build
-
-
+# Use Python 3.11 slim image
 FROM python:3.11-slim
 
-COPY --from=ghcr.io/astral-sh/uv:0.12.6 /uv /uvx /bin/
-
+# Set working directory
 WORKDIR /app
 
-ENV UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy \
-    PATH="/app/.venv/bin:$PATH"
-
+# Copy and install dependencies first (for better caching)
 COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-dev
+RUN pip install uv && uv sync --frozen
 
+# Copy application code
 COPY app/ ./app/
-COPY --from=ui-builder /ui/dist/ ./app/ui/say_hello/dist/
+COPY tests/ ./tests/
 
-RUN useradd -m appuser && chown -R appuser:appuser /app
-USER appuser
-
+# Expose port 
 EXPOSE 8000
 
+# Set environment variables to avoid prompts during installation
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Create logs directory
+RUN mkdir -p ./logs
+
+# Default command  
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

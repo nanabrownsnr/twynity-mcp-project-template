@@ -14,7 +14,7 @@ load_dotenv()
 
 # Put your MCP name here. Keeping this value in one place makes the service
 # identity, display title, and log filenames easy to customise.
-mcp_name = ""
+mcp_name = "replicate"
 
 
 def configured_mcp_name() -> str:

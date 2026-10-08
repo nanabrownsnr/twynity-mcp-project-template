@@ -1,85 +1,130 @@
-# Twynity MCP Project Template
+# Replicate MCP Server
 
-A reusable Python/FastMCP starter for MCP servers deployed in Twynity. It
-combines verified Twynity JWT authentication, project/persona-scoped external
-connections stored encrypted in MongoDB, MCP Apps UI scaffolding, and clear
-extension instructions.
+A production-ready Model Context Protocol (MCP) server for accessing Replicate's AI models. This server enables AI applications to run Replicate models through the MCP protocol, allowing for secure and controlled access with encrypted credential storage.
 
-## What is included
+## Features
 
-- FastMCP server with account-service JWKS JWT verification.
-- Project scope from the `Persona-Id` HTTP header. Connections are keyed by the
-  exact `(user_id, persona_id)` pair; there is no user-only fallback.
-- MongoDB startup/index setup and Fernet encryption for stored connector
-  credentials.
-- Twynity manifest, configuration schema, authenticated configuration GET/POST,
-  connection status, and health routes.
-- Example `say_hello` MCP App, usage reporting, and license watcher.
-- Docker build and automated tests.
+- Run Replicate AI models with input parameters
+- List public models available on Replicate
+- Get detailed information about specific models
+- Securely store API credentials in MongoDB with encryption
+- Integration with Twynity's auth and connection management system
+- MCP Apps UI support for visualization
 
-## Start here
+## Setup
 
-1. Set `mcp_name` in `app/config.py`, rename the Python project in
-   `pyproject.toml`, and update tool/UI names and URIs.
-2. Copy `.env.example` to `.env`; fill in account service, license, usage,
-   MongoDB, public URL, and allowed-origin settings. Generate a Fernet key:
+### Prerequisites
 
-   ```bash
-   uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-   ```
+1. Python 3.11 or higher
+2. MongoDB instance (for connection storage)
+3. Replicate API token from [replicate.com](https://replicate.com/account/api-tokens)
 
-   Back up `ENCRYPTION_KEY` securely. Losing/changing it prevents decrypting
-   existing connection secrets. Do not commit `.env`.
-3. Install dependencies, build the App bundle, and then run the checks. The
-   resource test intentionally verifies the compiled artifact, so the frontend
-   build must happen before pytest:
+### Installation
 
-   ```bash
-   uv sync --locked
-   cd app/ui/say_hello
-   npm ci
-   npm run build
-   cd ../../..
-   uv run pytest -q
-   uv run ruff check app tests
-   ```
-4. Run the server:
+1. Install the dependencies:
 
-   ```bash
-   uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
-   ```
+```bash
+uv sync --locked
+```
 
-See [`docs/TEMPLATE_GUIDE.md`](docs/TEMPLATE_GUIDE.md) for the full setup,
-auth contract, routes, tool/UI workflow, and customization checklist. See
-[`AGENTS.md`](AGENTS.md) for repository instructions for coding agents.
+2. Copy `.env.example` to `.env` and configure the environment variables:
 
-## Twynity identity contract
+```bash
+cp .env.example .env
+```
 
-Every authenticated request must carry a Twynity bearer JWT and the
-`Persona-Id` header. The server verifies the JWT using the configured account
-service JWKS and reads the user ID from verified `id` (or `sub`) claims. It
-never accepts a persona ID as a tool argument. MongoDB stores one upserted
-connection per user/persona pair.
+Edit `.env` with your configuration:
+- `MONGODB_URI` - MongoDB connection string for storing encrypted connections
+- `ENCRYPTION_KEY` - Fernet encryption key for securing credentials (generate with `uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`)
+- `ACCOUNT_SERVICE_URL` - Twynity account service URL
+- `ACCOUNT_SERVICE_JWKS_ENDPOINT` - JWKS endpoint for verifying JWTs
+- `ACCOUNT_SERVICE_JWKS_CACHE_TTL` - Cache TTL for JWKS
+- `LICENSE_KEY` - License key for usage tracking
+- `LICENSE_SERVER_BASE_URL` - License server base URL
+- `LICENSE_SERVER_JWKS_ENDPOINT` - JWKS endpoint for license verification
+- `LICENSE_SERVER_ACTIVATION_ENDPOINT` - License activation endpoint
+- `USAGE_REPORT_ENDPOINT` - Usage reporting endpoint
 
-The MCP Apps SDK's `app.callServerTool()` does not let UI code attach arbitrary
-HTTP headers. Twynity's host must therefore forward the authenticated bearer
-token and `Persona-Id` when proxying UI-originated MCP tool calls as well as
-model-originated calls. If the host does not forward the header, requests fail
-closed with a clear missing-header error; the UI must not ask the user to type
-or choose a persona ID.
+### Run the Server
 
-## Configuration routes
+```bash
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
-- `GET /api/v1/.well-known/mcp.json` — public service manifest; declares the
-  project external connection.
-- `GET /api/v1/schema` — public schema for the example upstream fields.
-- `POST /api/v1/configuration` — authenticated upsert for the active
-  `(user_id, persona_id)` connection; secrets are encrypted.
-- `GET /api/v1/configuration` — authenticated list-style response with safe
-  metadata only; never returns API keys/secrets.
-- `GET /api/v1/external-connection/me` — authenticated `{"connected": bool}`.
-- `GET /api/v1/health` — public liveness response.
+## Tools
 
-The sample fields (`name`, `base_url`, `api_key`, `api_secret`) are generic
-placeholders. Adapt the schema, validation, and UI to the upstream integration;
-retain the identity scoping and secret-handling guarantees.
+1. **run_model** - Run a Replicate model with input parameters
+2. **list_models** - List all public models available on Replicate
+3. **get_model_info** - Get detailed information about a specific model
+4. **check_replicate_connection** - Verify connection to Replicate API
+
+## Configuration
+
+The server expects a `.env` file with the following variables:
+
+```
+# MongoDB for secure connection storage
+MONGODB_URI=mongodb://localhost:27017
+DATABASE_NAME=twynity_mcp
+
+# Encryption key (required)
+ENCRYPTION_KEY=your_fernet_encryption_key_here
+
+# Twynity account service details  
+ACCOUNT_SERVICE_URL=https://accounts.twynity.com
+ACCOUNT_SERVICE_JWKS_ENDPOINT=/oauth2/keys
+ACCOUNT_SERVICE_JWKS_CACHE_TTL=300
+
+# License service details
+LICENSE_KEY=
+LICENSE_SERVER_BASE_URL=https://license.twynity.com
+LICENSE_SERVER_JWKS_ENDPOINT=/oauth2/keys
+LICENSE_SERVER_ACTIVATION_ENDPOINT=/activate
+
+# Usage reporting endpoint
+USAGE_REPORT_ENDPOINT=https://usage.twynity.com/api/v1/report
+
+# Public URL for the server
+PUBLIC_URL=http://localhost:8000
+
+# Environment (development, staging, production)
+ENVIRONMENT=development
+
+# Allowed origins for CORS
+ALLOWED_ORIGINS=*
+```
+
+## Authentication and Security
+
+This server uses Twynity's authentication system which requires:
+1. A valid bearer JWT token
+2. A `Persona-Id` header identifying the user's project/persona context
+
+Credentials are stored securely encrypted in MongoDB, with each connection scoped to a specific user and persona pair.
+
+## Development
+
+### Running Tests
+
+```bash
+uv run pytest -q
+```
+
+### Code Quality
+
+```bash
+uv run ruff check app tests
+```
+
+## Deployment
+
+### Docker
+
+```bash
+docker build -t replicate-mcp .
+docker run -p 8000:8000 replicate-mcp
+```
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.

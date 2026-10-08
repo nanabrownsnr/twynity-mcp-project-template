@@ -20,6 +20,7 @@ from app.auth import get_auth_provider
 from app.config import settings
 from app.connection_store import ConnectionStore, set_active_store
 from app.license import license_watcher
+from app.tools.replicate import register_tools as register_replicate_tools
 from app.tools.say_hello import register_tool as register_say_hello
 from app.twynity import register_routes
 from app.ui.say_hello.resource import register_resource
@@ -54,6 +55,7 @@ mcp = FastMCP(
 )
 
 
+register_replicate_tools(mcp)
 register_say_hello(mcp)
 
 class UsageTrackingMiddleware(MCPMiddleware):
